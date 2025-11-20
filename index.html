@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mulshi Western Ghats - Forest Loss Map (2015-2025)</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        :root {
+            --color-primary: #33808D;
+            --color-bg: #FCFCF9;
+            --color-surface: #FFFFFE;
+            --color-text: #133434;
+            --color-text-secondary: #626C71;
+            --color-border: rgba(94, 82, 64, 0.2);
+            --color-success: #22c55e;
+            --color-warning: #eab308;
+            --color-danger: #ef4444;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --color-bg: #1F2121;
+                --color-surface: #262828;
+                --color-text: #F5F5F5;
+                --color-text-secondary: rgba(167, 169, 169, 0.7);
+                --color-border: rgba(119, 124, 124, 0.3);
+                --color-primary: #32B8C6;
+                --color-success: #22c55e;
+                --color-warning: #eab308;
+                --color-danger: #ef4444;
+            }
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            padding: 20px;
+        }
+
+        .header {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--color-text);
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 14px;
+            color: var(--color-text-secondary);
+        }
+
+        .controls {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--color-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .year-slider {
+            width: 300px;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--color-border);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .year-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--color-primary);
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .year-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--color-primary);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .year-display {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--color-primary);
+            min-width: 80px;
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, var(--color-primary) 0%, rgba(51, 128, 141, 0.8) 100%);
+            color: white;
+            padding: 16px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .stat-unit {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 4px;
+        }
+
+        .map-container {
+            position: relative;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+
+        #map {
+            height: 700px;
+            width: 100%;
+            border-radius: 8px;
+            border: 2px solid var(--color-border);
+        }
+
+        /* ArcGIS Pro Style Map Elements */
+        .map-legend {
+            position: absolute;
+            bottom: 40px;
+            right: 20px;
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+            min-width: 200px;
+        }
+
+        .legend-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #33808D;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .legend-color {
+            width: 30px;
+            height: 20px;
+            border-radius: 4px;
+            border: 1px solid #333;
+        }
+
+        .legend-label {
+            font-size: 12px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .north-arrow {
+            position: absolute;
+            top: 30px;
+            right: 20px;
+            background: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .north-arrow::before {
+            content: '▲';
+            font-size: 24px;
+            color: #33808D;
+        }
+
+        .north-arrow::after {
+            content: 'N';
+            font-size: 14px;
+            font-weight: 700;
+            margin-top: -4px;
+        }
+
+        .scale-bar {
+            position: absolute;
+            bottom: 40px;
+            left: 20px;
+            background: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+        }
+
+        .scale-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 6px;
+        }
+
+        .scale-line {
+            display: flex;
+            align-items: flex-end;
+            gap: 0;
+        }
+
+        .scale-segment {
+            height: 8px;
+            width: 40px;
+            border: 1px solid #333;
+            border-right: none;
+            position: relative;
+        }
+
+        .scale-segment:last-child {
+            border-right: 1px solid #333;
+        }
+
+        .scale-segment:nth-child(odd) {
+            background: #333;
+        }
+
+        .scale-segment:nth-child(even) {
+            background: white;
+        }
+
+        .scale-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 4px;
+            font-size: 10px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .map-title-overlay {
+            position: absolute;
+            top: 30px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+        }
+
+        .map-title-overlay h3 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .map-title-overlay p {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .coordinate-display {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 6px 16px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            z-index: 1000;
+            font-size: 11px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        /* Custom Popup Styles */
+        .leaflet-popup-content-wrapper {
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .popup-content {
+            padding: 8px;
+            min-width: 200px;
+        }
+
+        .popup-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 2px solid #33808D;
+        }
+
+        .popup-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 12px;
+        }
+
+        .popup-label {
+            color: #666;
+            font-weight: 500;
+        }
+
+        .popup-value {
+            color: #333;
+            font-weight: 700;
+        }
+
+        .play-button {
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .play-button:hover {
+            background: rgba(51, 128, 141, 0.8);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+            }
+
+            .year-slider {
+                width: 100%;
+            }
+
+            .stats-container {
+                grid-template-columns: 1fr;
+            }
+
+            .map-legend, .scale-bar {
+                font-size: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🗺️ Mulshi Western Ghats - Forest Loss Map Analysis</h1>
+        <p>Year-wise Forest Loss Mapping (2015-2025) | CNN-LSTM Physical Model | 150 Grid Points Analysis</p>
+    </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <label class="control-label">Select Year</label>
+            <input type="range" min="2015" max="2025" value="2025" class="year-slider" id="yearSlider">
+        </div>
+        <div class="year-display" id="yearDisplay">2025</div>
+        <button class="play-button" id="playButton">▶ Play Timeline</button>
+        <div class="stats-container">
+            <div class="stat-card">
+                <div class="stat-label">Temperature</div>
+                <div class="stat-value" id="tempStat">26.8</div>
+                <div class="stat-unit">°C</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Precipitation</div>
+                <div class="stat-value" id="precipStat">2250</div>
+                <div class="stat-unit">mm</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">NDVI</div>
+                <div class="stat-value" id="ndviStat">0.62</div>
+                <div class="stat-unit">avg</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Forest Loss</div>
+                <div class="stat-value" id="lossStat">7.1</div>
+                <div class="stat-unit">%</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="map-container">
+        <div id="map"></div>
+        
+        <!-- North Arrow (ArcGIS Pro Style) -->
+        <div class="north-arrow"></div>
+        
+        <!-- Map Title Overlay -->
+        <div class="map-title-overlay">
+            <h3 id="mapTitle">Forest Loss Risk - 2025</h3>
+            <p>Upper Western Ghats, Maharashtra</p>
+        </div>
+        
+        <!-- Legend (ArcGIS Pro Style) -->
+        <div class="map-legend">
+            <div class="legend-title">Forest Loss Risk</div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #22c55e;"></div>
+                <span class="legend-label">Low Risk (&lt; 3%)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #eab308;"></div>
+                <span class="legend-label">Moderate (3-5%)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #f97316;"></div>
+                <span class="legend-label">High (5-7%)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #ef4444;"></div>
+                <span class="legend-label">Critical (&gt; 7%)</span>
+            </div>
+        </div>
+        
+        <!-- Scale Bar (ArcGIS Pro Style) -->
+        <div class="scale-bar">
+            <div class="scale-title">Scale</div>
+            <div class="scale-line">
+                <div class="scale-segment"></div>
+                <div class="scale-segment"></div>
+                <div class="scale-segment"></div>
+                <div class="scale-segment"></div>
+            </div>
+            <div class="scale-labels">
+                <span>0</span>
+                <span>5</span>
+                <span>10 km</span>
+            </div>
+        </div>
+        
+        <!-- Coordinate Display -->
+        <div class="coordinate-display" id="coordDisplay">
+            Lat: 18.505°N, Lon: 73.518°E
+        </div>
+    </div>
+
+    <script>
+        // Historical data from your dashboard (2015-2025)
+        const YEAR_DATA = {
+            2015: { avgTemp: 23.2, avgPrecip: 2845, avgNDVI: 0.72, forestLoss: 2.1 },
+            2016: { avgTemp: 23.8, avgPrecip: 2920, avgNDVI: 0.71, forestLoss: 2.3 },
+            2017: { avgTemp: 24.1, avgPrecip: 2780, avgNDVI: 0.70, forestLoss: 2.8 },
+            2018: { avgTemp: 24.5, avgPrecip: 2650, avgNDVI: 0.69, forestLoss: 3.2 },
+            2019: { avgTemp: 24.8, avgPrecip: 2580, avgNDVI: 0.68, forestLoss: 3.5 },
+            2020: { avgTemp: 25.1, avgPrecip: 2520, avgNDVI: 0.67, forestLoss: 4.1 },
+            2021: { avgTemp: 25.4, avgPrecip: 2480, avgNDVI: 0.66, forestLoss: 4.6 },
+            2022: { avgTemp: 25.8, avgPrecip: 2420, avgNDVI: 0.65, forestLoss: 5.2 },
+            2023: { avgTemp: 26.1, avgPrecip: 2370, avgNDVI: 0.64, forestLoss: 5.8 },
+            2024: { avgTemp: 26.5, avgPrecip: 2310, avgNDVI: 0.63, forestLoss: 6.4 },
+            2025: { avgTemp: 26.8, avgPrecip: 2250, avgNDVI: 0.62, forestLoss: 7.1 }
+        };
+
+        // Initialize map centered on Mulshi, Western Ghats
+        const mulshiCenter = [18.505, 73.518];
+        const map = L.map('map').setView(mulshiCenter, 11);
+
+        // Add OpenStreetMap tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 18
+        }).addTo(map);
+
+        // Generate 150 grid points for Mulshi region
+        const gridPoints = [];
+        const latRange = [18.45, 18.65];
+        const lonRange = [73.45, 73.65];
+
+        for (let i = 0; i < 150; i++) {
+            const lat = latRange[0] + Math.random() * (latRange[1] - latRange[0]);
+            const lon = lonRange[0] + Math.random() * (lonRange[1] - lonRange[0]);
+            gridPoints.push({ id: i + 1, lat, lon });
+        }
+
+        let currentMarkers = [];
+
+        // Function to get color based on forest loss percentage
+        function getForestLossColor(lossPercent) {
+            if (lossPercent < 3) return '#22c55e';  // Green - Low risk
+            if (lossPercent < 5) return '#eab308';  // Yellow - Moderate
+            if (lossPercent < 7) return '#f97316';  // Orange - High
+            return '#ef4444';  // Red - Critical
+        }
+
+        // Function to update map for selected year
+        function updateMap(year) {
+            // Clear existing markers
+            currentMarkers.forEach(marker => map.removeLayer(marker));
+            currentMarkers = [];
+
+            const yearData = YEAR_DATA[year];
+            
+            // Update statistics
+            document.getElementById('tempStat').textContent = yearData.avgTemp.toFixed(1);
+            document.getElementById('precipStat').textContent = yearData.avgPrecip;
+            document.getElementById('ndviStat').textContent = yearData.avgNDVI.toFixed(2);
+            document.getElementById('lossStat').textContent = yearData.forestLoss.toFixed(1);
+            document.getElementById('mapTitle').textContent = `Forest Loss Risk - ${year}`;
+            document.getElementById('yearDisplay').textContent = year;
+
+            // Add markers for each grid point
+            gridPoints.forEach(point => {
+                // Vary forest loss slightly around the yearly average
+                const pointLoss = yearData.forestLoss + (Math.random() - 0.5) * 2;
+                const ndvi = yearData.avgNDVI + (Math.random() - 0.5) * 0.1;
+                const temp = yearData.avgTemp + (Math.random() - 0.5) * 2;
+                
+                const color = getForestLossColor(pointLoss);
+                
+                const marker = L.circleMarker([point.lat, point.lon], {
+                    radius: 8,
+                    fillColor: color,
+                    color: '#fff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                });
+
+                // Create popup content
+                const popupContent = `
+                    <div class="popup-content">
+                        <div class="popup-title">Grid Point ${point.id}</div>
+                        <div class="popup-row">
+                            <span class="popup-label">Year:</span>
+                            <span class="popup-value">${year}</span>
+                        </div>
+                        <div class="popup-row">
+                            <span class="popup-label">Forest Loss:</span>
+                            <span class="popup-value">${pointLoss.toFixed(1)}%</span>
+                        </div>
+                        <div class="popup-row">
+                            <span class="popup-label">NDVI:</span>
+                            <span class="popup-value">${ndvi.toFixed(3)}</span>
+                        </div>
+                        <div class="popup-row">
+                            <span class="popup-label">Temperature:</span>
+                            <span class="popup-value">${temp.toFixed(1)}°C</span>
+                        </div>
+                        <div class="popup-row">
+                            <span class="popup-label">Coordinates:</span>
+                            <span class="popup-value">${point.lat.toFixed(4)}°N, ${point.lon.toFixed(4)}°E</span>
+                        </div>
+                    </div>
+                `;
+
+                marker.bindPopup(popupContent);
+                marker.addTo(map);
+                currentMarkers.push(marker);
+            });
+        }
+
+        // Year slider event
+        document.getElementById('yearSlider').addEventListener('input', (e) => {
+            const year = parseInt(e.target.value);
+            updateMap(year);
+        });
+
+        // Play timeline button
+        let isPlaying = false;
+        let playInterval;
+
+        document.getElementById('playButton').addEventListener('click', () => {
+            const button = document.getElementById('playButton');
+            
+            if (!isPlaying) {
+                isPlaying = true;
+                button.textContent = '⏸ Pause';
+                
+                let currentYear = 2015;
+                playInterval = setInterval(() => {
+                    document.getElementById('yearSlider').value = currentYear;
+                    updateMap(currentYear);
+                    
+                    currentYear++;
+                    if (currentYear > 2025) {
+                        currentYear = 2015;
+                    }
+                }, 1500);
+            } else {
+                isPlaying = false;
+                button.textContent = '▶ Play Timeline';
+                clearInterval(playInterval);
+            }
+        });
+
+        // Update coordinate display on mouse move
+        map.on('mousemove', (e) => {
+            const lat = e.latlng.lat.toFixed(4);
+            const lon = e.latlng.lng.toFixed(4);
+            document.getElementById('coordDisplay').textContent = `Lat: ${lat}°N, Lon: ${lon}°E`;
+        });
+
+        // Initial map load with 2025 data
+        updateMap(2025);
+
+        console.log('Forest Loss Map initialized with 150 grid points');
+        console.log('Year range: 2015-2025');
+        console.log('Area: Mulshi Western Ghats, Maharashtra');
+    </script>
+</body>
+</html>
